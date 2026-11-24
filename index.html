@@ -4,32 +4,48 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LeTeC – LED Temperature Calculator</title>
+<meta name="description" content="LeTeC: quick LED junction temperature estimate from datasheet values, for still-air cooling or a heat sink.">
+<meta name="theme-color" content="#0a0f2c">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!-- beamKit: shared design framework for the lighting tools (https://jalibakthermk.github.io/beamkit/) -->
+<link rel="stylesheet" href="https://jalibakthermk.github.io/beamkit/beamkit.css">
+<script>try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<script src="https://jalibakthermk.github.io/beamkit/beamkit.js" defer></script>
 <style>
-:root{color-scheme:light;--bg:#f6f6f4;--card:#fcfcfb;--line:#e4e3de;--track:#e7e6e1;--t1:#0b0b0b;--t2:#52514e;--t3:#7b7a75;--acc:#2a78d6;
---good:#0a7d3c;--goodbg:#e6f4ea;--warn:#a86800;--warnbg:#fff3dc;--crit:#c8312f;--critbg:#fdeaea;--knob:#ffffff;--knobsh:rgba(0,0,0,.12)}
-@media (prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#121211;--card:#1a1a19;--line:#2d2d2b;--track:#33332f;--t1:#f0efec;--t2:#c3c2b7;--t3:#8d8c85;--acc:#3987e5;
---good:#3fbf72;--goodbg:#16291d;--warn:#e6a23c;--warnbg:#2c2414;--crit:#ee7270;--critbg:#2f1a1a;--knob:#2a2a28;--knobsh:rgba(0,0,0,.5)}}
+/* LeTeC colour names mapped onto the shared beamKit tokens (light and dark come from beamkit.css).
+   Fallback values keep the page usable if beamkit.css cannot load (e.g. offline). */
+:root{--bg:var(--cds-background,#f2f4f8);--card:var(--cds-layer-01,#fff);--line:var(--cds-border-subtle,#d5d9e0);--track:var(--cds-layer-02,#e8ebf1);
+--t1:var(--cds-text-primary,#161616);--t2:var(--cds-text-secondary,#525a66);--t3:var(--cds-text-helper,#6f7682);--acc:var(--cds-button-primary,#0f62fe);
+--good:var(--cds-ok-text,#0e6027);--goodbg:var(--cds-ok-bg,#defbe6);--warn:var(--cds-warn-text,#8e6a00);--warnbg:var(--cds-warn-bg,#fcf4d6);
+--crit:var(--cds-bad-text,#a2191f);--critbg:var(--cds-bad-bg,#fff1f1);--knob:var(--cds-layer-01,#fff);--knobsh:rgba(0,0,0,.12)}
+:root[data-theme="dark"]{--knobsh:rgba(0,0,0,.5)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--knobsh:rgba(0,0,0,.5)}}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--t1);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-.wrap{max-width:560px;margin:0 auto;padding:20px 16px 40px}
-h1{font-size:21px;margin:0 0 4px}
-.lead{margin:0 0 16px;color:var(--t2);font-size:14px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px}
-.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--t2);margin:0 0 12px}
+body{margin:0;background:var(--bg);color:var(--t1);font:14px/1.45 var(--font-body,"Segoe UI",system-ui,sans-serif)}
+/* LeTeC is a narrow, single-column calculator: title band, app and footer share its width */
+.wrap.narrow-app{max-width:592px}
+.wrap.app{padding-top:16px}
+.titleband .narrow-app h1{font-size:clamp(26px,3vw,32px)}
+.lead{margin:0 0 12px;color:var(--t2);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:0;padding:14px 16px;margin-bottom:12px}
+.card+.card{margin-top:0}
+.card h2{font-family:var(--font-display,sans-serif);font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--t2);margin:0 0 12px}
 /* result */
-.res{border-radius:12px;padding:16px;margin-bottom:12px;border:1px solid var(--line)}
-.mini{position:fixed;left:0;right:0;top:0;z-index:10;display:flex;justify-content:center;transform:translateY(-110%);transition:transform .18s;pointer-events:none}
+.res{border-radius:0;border-top:3px solid var(--res-c,var(--line));padding:16px;margin-bottom:12px;border:1px solid var(--line)}
+.mini{position:fixed;left:0;right:0;top:var(--shell-h,48px);z-index:10;display:flex;justify-content:center;transform:translateY(-110%);transition:transform .18s;pointer-events:none}
 .mini.on{transform:none}
 .mini div{max-width:560px;width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 16px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;box-shadow:0 2px 8px var(--knobsh)}
 .mini b{font-size:18px}.mini span{font-size:13px;font-weight:600}
 .res .lab{font-size:12.5px;color:var(--t2)}
-.res .big{font-size:46px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums}
+.res .big{font-family:var(--font-display,sans-serif);font-size:46px;font-weight:600;line-height:1.05;font-variant-numeric:tabular-nums}
 .res .big small{font-size:20px;font-weight:500;color:var(--t2)}
 .pill{display:inline-block;font-weight:600;font-size:13px;padding:3px 10px;border-radius:99px;margin-top:6px}
 .ok{background:var(--goodbg);color:var(--good)}.mid{background:var(--warnbg);color:var(--warn)}.bad{background:var(--critbg);color:var(--crit)}
 .row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
-.m{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:7px 9px}
-.m .k{font-size:11.5px;color:var(--t2)}.m .v{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
+.m{background:var(--card);border:1px solid var(--line);border-radius:0;padding:7px 9px}
+.m .k{font-size:11.5px;color:var(--t2)}.m .v{font-family:var(--font-mono,monospace);font-size:16px;font-weight:500;font-variant-numeric:tabular-nums}
 .m .v small{font-size:11.5px;color:var(--t3);font-weight:400}
 .gauge{height:8px;border-radius:99px;background:var(--track);margin-top:12px;position:relative;overflow:hidden}
 .gauge i{position:absolute;left:0;top:0;bottom:0;border-radius:99px;transition:width .15s}
@@ -51,8 +67,8 @@ h1{font-size:21px;margin:0 0 4px}
 .sl .top label{font-size:13px;color:var(--t2)}
 .sl .top .val{display:flex;align-items:baseline;gap:4px}
 .sl .top .val span{font-size:12px;color:var(--t3);min-width:28px}
-input[type=number]{width:74px;text-align:right;padding:4px 6px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--t1);font:inherit;font-size:14px;font-weight:600;min-height:30px;font-variant-numeric:tabular-nums}
-input[type=number]:focus{outline:2px solid var(--acc);outline-offset:1px}
+input[type=number]{width:74px;text-align:right;padding:4px 6px;border:0;border-bottom:1px solid var(--cds-border-strong,#8d8d8d);border-radius:0;background:var(--cds-layer-02,#e8ebf1);color:var(--t1);font:inherit;font-family:var(--font-mono,monospace);font-size:13px;font-weight:500;min-height:30px;font-variant-numeric:tabular-nums}
+input[type=number]:focus{outline:2px solid var(--cds-focus,#0f62fe);outline-offset:-2px}
 input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent;margin:0;cursor:pointer}
 input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:99px;background:linear-gradient(to right,var(--acc) var(--p,0%),var(--track) var(--p,0%))}
 input[type=range]::-moz-range-track{height:6px;border-radius:99px;background:var(--track)}
@@ -62,9 +78,11 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 input[type=range]:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:6px}
 .mm{display:flex;justify-content:space-between;font-size:11px;color:var(--t3);margin-top:-2px}
 /* segmented + toggle */
-.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px}
-.seg button{padding:9px 6px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--t2);font:inherit;font-size:14px;cursor:pointer}
-.seg button[aria-pressed=true]{border-color:var(--acc);color:var(--t1);font-weight:600;box-shadow:inset 0 0 0 1px var(--acc)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:14px;border:1px solid var(--cds-border-strong,#8d8d8d)}
+.seg button{padding:9px 6px;border:0;border-radius:0;background:transparent;color:var(--t2);font:inherit;font-size:13px;cursor:pointer}
+.seg button+button{border-left:1px solid var(--cds-border-strong,#8d8d8d)}
+.seg button:hover{background:var(--cds-layer-02,#e8ebf1)}
+.seg button[aria-pressed=true]{background:var(--t1);color:var(--bg);font-weight:500;box-shadow:none}
 .tog{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;color:var(--t2);margin-top:4px;cursor:pointer}
 .tog input{position:absolute;opacity:0;width:1px;height:1px}
 .tog .sw{width:42px;height:24px;border-radius:99px;background:var(--track);position:relative;flex:none;transition:background .15s}
@@ -74,14 +92,36 @@ input[type=range]:focus-visible{outline:2px solid var(--acc);outline-offset:2px;
 .tog input:focus-visible+.sw{outline:2px solid var(--acc);outline-offset:2px}
 .hint{font-size:12px;color:var(--t3);margin:10px 0 0}
 .note{font-size:12.5px;color:var(--t2)}
-.note code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
-details summary{cursor:pointer;font-weight:600;font-size:14px}
+.note code{font-family:var(--font-mono,monospace);font-size:12px;background:var(--cds-layer-02,#e8ebf1);padding:1px 4px}
+details summary{cursor:pointer;font-family:var(--font-display,sans-serif);font-weight:600;font-size:15px}
+footer.bk a{color:var(--cds-link-primary)}
 </style>
 </head>
 <body>
+<a class="skip" href="#res">Skip to the result</a>
+<div class="shell">
+  <div class="wrap">
+    <a class="shell-name" href="https://jalibakthermk.github.io/"><img src="favicon.svg" alt="" width="24" height="24"> LeTeC <span class="crumb">· Jalib Akther</span></a>
+    <div class="shell-actions">
+      <a href="https://jalibakthermk.github.io/" title="All projects"><svg class="i"><use href="#icon-grid"/></svg> <span class="lbl">Projects</span></a>
+      <a href="https://github.com/jalibakthermk/LeTeC" title="Source code"><svg class="i"><use href="#icon-github"/></svg> <span class="lbl">Code</span></a>
+      <button type="button" data-bk-theme aria-label="Toggle light and dark theme" title="Toggle light / dark">
+        <svg class="i sun"><use href="#icon-sun"/></svg><svg class="i moon"><use href="#icon-moon"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<header class="titleband">
+  <div class="wrap narrow-app">
+    <p class="eyebrow">LEDs · thermal · junction temperature</p>
+    <h1><b>LeTeC</b> LED Temperature Calculator</h1>
+    <p class="sub">Junction temperature from a few datasheet values, for still-air cooling or a heat sink.</p>
+  </div>
+</header>
+
 <div class="mini" id="mini" aria-hidden="true"><div><b id="miniT"></b><span id="miniS"></span></div></div>
-<div class="wrap">
-  <h1>LED Temperature – Quick Calculator</h1>
+<div class="wrap narrow-app app">
   <p class="lead">Turn the knobs and drag the sliders. You can also type a value into any box.</p>
 
   <div class="res" id="res" aria-live="polite"></div>
@@ -120,6 +160,16 @@ details summary{cursor:pointer;font-weight:600;font-size:14px}
       <p><b>Heat sink:</b> uses the heat sink's thermal resistance from its datasheet. Include the board and thermal pad in it if they are significant.</p>
     </details>
   </div>
+</div>
+
+<div class="wrap narrow-app foot">
+  <footer class="bk">
+    <span>LeTeC</span>
+    <span>© 2026 Jalib Akther</span>
+    <span><svg class="i"><use href="#icon-pin"/></svg> Thrissur, India</span>
+    <a href="https://jalibakthermk.github.io/">More lighting tools →</a>
+    <span class="disc">Estimates are about ±20 %; check them against measured data before relying on them.</span>
+  </footer>
 </div>
 <script>
 const $=id=>document.getElementById(id);
@@ -223,7 +273,7 @@ function calc(){
   const col=cls==='ok'?'var(--good)':cls==='mid'?'var(--warn)':'var(--crit)';
   const gLo=Math.min(Ta,0),gHi=Math.max(Tmax+25,Tj);
   const res=$('res');res.className='res';
-  res.style.background='var(--'+(cls==='ok'?'goodbg':cls==='mid'?'warnbg':'critbg')+')';
+  res.style.background='var(--'+(cls==='ok'?'goodbg':cls==='mid'?'warnbg':'critbg')+')';res.style.setProperty('--res-c',col);
   res.innerHTML=`<div class="lab">Junction temperature</div>
     <div class="big">${Tj.toFixed(0)}<small> °C</small></div>
     <span class="pill ${cls}">${txt}</span>

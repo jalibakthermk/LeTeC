@@ -2,7 +2,7 @@
 
 A quick, single-page web tool to estimate the **junction temperature (Tj)** of LEDs from a few datasheet values.
 
-Open `index.html` in any browser. No install and no build step needed. It also works on GitHub Pages.
+Open `index.html` in any browser. No install and no build step needed. It also works on GitHub Pages. The look comes from the shared [beamKit](https://jalibakthermk.github.io/beamkit/demo.html) design framework, loaded from the portfolio site; offline the calculator still works, with plain fallback styling.
 
 ## Inputs
 
